@@ -1569,7 +1569,7 @@ class NetworkDriver(object):
         """
         raise NotImplementedError
 
-    def compliance_report(self, validation_file=None, validation_source=None):
+    def compliance_report(self, validation_file=None, validation_source=None, forced_mode=None):
         """
         Return a compliance report.
 
@@ -1582,4 +1582,5 @@ class NetworkDriver(object):
         :raise NotImplementedError: Method not implemented.
         """
         return validate.compliance_report(self, validation_file=validation_file,
-                                          validation_source=validation_source)
+                                          validation_source=validation_source,
+                                          forced_mode=forced_mode)

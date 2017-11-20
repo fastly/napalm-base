@@ -40,7 +40,7 @@ def _mode(mode_string):
     return mode
 
 
-def _compare_getter_list(src, dst, mode):
+def _compare_getter_list(src, dst, mode, forced_mode=None):
     result = {"complies": True, "present": [], "missing": [], "extra": []}
     for src_element in src:
         found = False
@@ -48,7 +48,7 @@ def _compare_getter_list(src, dst, mode):
         i = 0
         while True:
             try:
-                intermediate_match = _compare_getter(src_element, dst[i])
+                intermediate_match = _compare_getter(src_element, dst[i], forced_mode=forced_mode)
                 if isinstance(intermediate_match, dict) and intermediate_match["complies"] or \
                    not isinstance(intermediate_match, dict) and intermediate_match:
                     found = True
@@ -71,7 +71,7 @@ def _compare_getter_list(src, dst, mode):
     return result
 
 
-def _compare_getter_dict(src, dst, mode):
+def _compare_getter_dict(src, dst, mode, forced_mode=None):
     result = {"complies": True, "present": {}, "missing": [], "extra": []}
     dst = copy.deepcopy(dst)  # Otherwise we are going to modify a "live" object
 
@@ -79,7 +79,7 @@ def _compare_getter_dict(src, dst, mode):
         try:
             dst_element = dst.pop(key)
             result["present"][key] = {}
-            intermediate_result = _compare_getter(src_element, dst_element)
+            intermediate_result = _compare_getter(src_element, dst_element, forced_mode=forced_mode)
 
             if isinstance(intermediate_result, dict):
                 nested = True
@@ -111,19 +111,19 @@ def _compare_getter_dict(src, dst, mode):
     return result
 
 
-def _compare_getter(src, dst):
+def _compare_getter(src, dst, forced_mode=None):
     if isinstance(src, py23_compat.string_types):
         src = py23_compat.text_type(src)
 
     if isinstance(src, dict):
-        mode = _mode(src.pop('_mode', ''))
+        mode = _mode(forced_mode or src.pop('_mode', ''))
         if 'list' in src.keys():
             if not isinstance(dst, list):
                 # This can happen with nested lists
                 return False
 
-            return _compare_getter_list(src['list'], dst, mode)
-        return _compare_getter_dict(src, dst, mode)
+            return _compare_getter_list(src['list'], dst, mode, forced_mode=forced_mode)
+        return _compare_getter_dict(src, dst, mode, forced_mode=forced_mode)
 
     elif isinstance(src, py23_compat.string_types):
         if src.startswith('<') or src.startswith('>'):
@@ -175,8 +175,9 @@ def empty_tree(input_list):
     return True
 
 
-def compliance_report(cls, validation_file=None, validation_source=None):
+def compliance_report(cls, validation_file=None, validation_source=None, forced_mode=None):
     report = {}
+
     if validation_file:
         validation_source = _get_validation_file(validation_file)
 
@@ -191,7 +192,7 @@ def compliance_report(cls, validation_file=None, validation_source=None):
                 try:
                     kwargs = expected_results.pop('_kwargs', {})
                     actual_results = getattr(cls, getter)(**kwargs)
-                    report[key] = _compare_getter(expected_results, actual_results)
+                    report[key] = _compare_getter(expected_results, actual_results, forced_mode=forced_mode)
                 except NotImplementedError:
                     report[key] = {"skipped": True, "reason": "NotImplemented"}
 
